@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Creating Arkham Horror: LCG Custom Content With Strange Eons</title>
+    
+    <!-- Fuse.js for client-side fuzzy searching -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.js"></script>
+    <!-- highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <style>
+      :root {
+        --bg-color: #fefefe;
+        --fg-color: #222;
+        --accent-color: #0077cc;
+        --link-color: #005999;
+        --highlight-bg: #f6f8fa;
+        --max-content-width: 1200px;
+        --font-body: "Helvetica Neue", Arial, sans-serif;
+        --font-traits: "Arno Pro Bold Italic", serif;
+      }
+      
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg-color);
+        color: var(--fg-color);
+        font-family: var(--font-body);
+        line-height: 1.6;
+      }
+      
+      /* Fixed left sidebar for static TOC */
+      #sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 250px;
+        height: 100vh;
+        overflow-y: auto;
+        background: #f9f9f9;
+        border-right: 1px solid #ddd;
+        padding: 1em;
+      }
+      #sidebar h2 {
+        font-size: 1.2em;
+        margin-bottom: 0.5em;
+      }
+      #sidebar ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      #sidebar li {
+        margin-bottom: 0.5em;
+      }
+      #sidebar a {
+        color: var(--link-color);
+        text-decoration: none;
+      }
+      #sidebar a:hover {
+        text-decoration: underline;
+      }
+      
+      /* Global search bar fixed in the top right */
+      #global-search-container {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+      }
+      #global-search {
+        padding: 0.5em;
+        font-size: 1em;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      #global-search-results {
+        position: absolute;
+        top: 40px;
+        right: 0;
+        background: #fff;
+        border: 1px solid #ccc;
+        max-height: 300px;
+        overflow-y: auto;
+        width: 300px;
+        display: none;
+      }
+      #global-search-results ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      #global-search-results li {
+        padding: 0.5em;
+        border-bottom: 1px solid #eee;
+      }
+      #global-search-results li a {
+        color: var(--link-color);
+      }
+      
+      /* Main content area with left margin */
+      main {
+        margin-left: 270px;
+        max-width: var(--max-content-width);
+        padding: 1em;
+      }
+      
+      /* Section styling */
+      section {
+        margin-bottom: 2em;
+      }
+      h1, h2, h3, h4 {
+        margin-top: 1.2em;
+        margin-bottom: 0.5em;
+      }
+      
+      /* "Back to Top" links */
+      .back-to-top {
+        display: block;
+        text-align: right;
+        font-size: 0.9em;
+        margin-top: 1em;
+      }
+      
+      /* Trait block styling */
+      .trait-block {
+        border: 1px solid #ccc;
+        padding: 0.75em;
+        margin-bottom: 1.5em;
+        background: #fff;
+      }
+      .trait-block h3 {
+        margin-top: 0;
+      }
+      .trait-search input {
+        width: 100%;
+        padding: 0.4em;
+        font-size: 0.9em;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        margin-bottom: 0.5em;
+      }
+      .trait-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8em;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .trait-list li {
+        background: var(--highlight-bg);
+        padding: 0.3em 0.5em;
+        border-radius: 4px;
+      }
+      .trait {
+        font-family: var(--font-traits);
+        font-weight: bold;
+        font-style: italic;
+      }
+      
+      /* Code block styling */
+      pre code.hljs {
+        display: block;
+        padding: 1em;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+      
+      /* Placeholders for symbols and icons */
+      .placeholder-icon {
+        display: inline-block;
+        width: 48px;
+        height: 48px;
+        background: #ddd;
+        border: 1px solid #bbb;
+        margin: 0.5em;
+        vertical-align: middle;
+        text-align: center;
+        line-height: 48px;
+        color: #666;
+        font-size: 0.8em;
+      }
+      
+      /* New section: Path Conventions */
+      .path-conventions {
+        border: 1px dashed var(--accent-color);
+        padding: 1em;
+        margin: 1em 0;
+        background: #fff;
+      }
+      .path-conventions code {
+        background: var(--highlight-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 3px;
+      }
+      
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        #sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          border-right: none;
+        }
+        main {
+          margin-left: 0;
+        }
+        #global-search-container {
+          position: relative;
+          top: 0;
+          right: 0;
+          margin: 1em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Fixed Left Sidebar: Static TOC -->
+    <nav id="sidebar" aria-label="Table of Contents">
+      <h2>Contents</h2>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#introduction">Introduction</a></li>
+        <li>
+          <a href="#official-traits">Official Traits</a>
+          <ul>
+            <li><a href="#player-cards">Player Cards</a></li>
+            <li><a href="#encounter-cardsweaknesses">Encounter Cards/Weaknesses</a></li>
+            <li><a href="#locations">Locations</a></li>
+            <li><a href="#investigator-traits">Investigator Traits</a></li>
+          </ul>
+        </li>
+        <li><a href="#official-keywords">Official Keywords</a></li>
+        <li><a href="#available-tags">Available Tags</a></li>
+        <li><a href="#common-tags">Common Tags</a></li>
+        <li><a href="#tag-reference">Tag Reference</a></li>
+        <li><a href="#variable-tags">Variable Tags</a></li>
+        <li><a href="#gender-adaptive-tags">Gender-Adaptive Tags</a></li>
+        <li><a href="#advanced-tags">Advanced Tags</a></li>
+        <li><a href="#premade-macros">Pre-made Text Macros</a></li>
+        <li><a href="#symbols-icons">Symbols &amp; Icons</a></li>
+        <li><a href="#additional-docs">Additional Official Documentation</a></li>
+        <li><a href="#final-remarks">Final Remarks</a></li>
+      </ul>
+    </nav>
+    
+    <!-- Fixed Global Search Bar in Top Right -->
+    <div id="global-search-container">
+      <input type="text" id="global-search" placeholder="Search documentation..." aria-label="Global search" oninput="performGlobalSearch()" />
+      <div id="global-search-results"></div>
+    </div>
+    
+    <!-- Main Content -->
+    <main id="doc-title">
+	  <h1 id="main-heading">Creating AHLCG Content With Strange Eons</h1>
+      <!-- Prerequisites -->
+      <section id="prerequisites" aria-labelledby="prereq-heading">
+        <h2 id="prereq-heading">Prerequisites</h2>
+        <ul>
+          <li><strong>Fonts:</strong> Install <em>Arno Pro Regular, Arno Pro Bold, Arno Pro Italic, Arno Pro Bold Italic</em> (for all users on Windows).</li>
+          <li><strong>Bulk Export Plugin</strong> from the Plugin Catalog.</li>
+          <li><strong>(Optional) Zoop Plugin</strong> (by MickeyTheQ) for exporting game components to Tabletop Simulator.</li>
+        </ul>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Introduction -->
+      <section id="introduction" aria-labelledby="intro-heading">
+        <h2 id="intro-heading">Introduction</h2>
+        <p>This documentation provides guidance for using Strange Eons together with the AHLCG plug‑in to create custom content for <strong>Arkham Horror: The Card Game</strong>. The plug‑in lets you generate custom cards and components with a wide range of formatting and game‑specific features.</p>
+        <p>Topics include tag usage, official traits, keywords, available tags, common formatting, advanced scripting, and more.</p>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Official Traits -->
+      <section id="official-traits" aria-labelledby="traits-heading">
+        <h2 id="traits-heading">Official Traits</h2>
+        <p>Traits define specific characteristics or properties of cards. They are divided into the following subsections:</p>
+        <ul>
+          <li><a href="#player-cards">Player Cards</a></li>
+          <li><a href="#encounter-cardsweaknesses">Encounter Cards/Weaknesses</a></li>
+          <li><a href="#locations">Locations</a></li>
+          <li><a href="#investigator-traits">Investigator Traits</a></li>
+        </ul>
+        
+        <!-- Player Cards -->
+        <section id="player-cards" aria-labelledby="player-cards-heading">
+          <h3 id="player-cards-heading">Player Cards</h3>
+          <div class="trait-search">
+            <input type="text" placeholder="Search Player Cards..." aria-label="Search Player Card traits" oninput="filterTraitsFuse(event, 'player')" />
+          </div>
+          <ul class="trait-list" id="player-cards-list">
+            <li><span class="trait">Agency</span></li>
+            <li><span class="trait">Ally</span></li>
+            <li><span class="trait">Artist</span></li>
+            <li><span class="trait">Assistant</span></li>
+            <li><span class="trait">Augury</span></li>
+            <li><span class="trait">Believer</span></li>
+            <li><span class="trait">Blessed</span></li>
+            <li><span class="trait">Bold</span></li>
+            <li><span class="trait">Boon</span></li>
+            <li><span class="trait">Bystander</span></li>
+            <li><span class="trait">Charm</span></li>
+            <li><span class="trait">Clairvoyant</span></li>
+            <li><span class="trait">Clothing</span></li>
+            <li><span class="trait">Composure</span></li>
+            <li><span class="trait">Condition</span></li>
+            <li><span class="trait">Connection</span></li>
+            <li><span class="trait">Conspirator</span></li>
+            <li><span class="trait">Covenant</span></li>
+            <li><span class="trait">Creature</span></li>
+            <li><span class="trait">Criminal</span></li>
+            <li><span class="trait">Cultist</span></li>
+            <li><span class="trait">Cursed</span></li>
+          </ul>
+          <a class="back-to-top" href="#doc-title">Back to top</a>
+        </section>
+        
+        <!-- Encounter Cards/Weaknesses -->
+        <section id="encounter-cardsweaknesses" aria-labelledby="encounter-heading">
+          <h3 id="encounter-heading">Encounter Cards/Weaknesses</h3>
+          <div class="trait-search">
+            <input type="text" placeholder="Search Encounter Cards/Weaknesses..." aria-label="Search Encounter traits" oninput="filterTraitsFuse(event, 'encounter')" />
+          </div>
+          <ul class="trait-list" id="encounter-list">
+            <li><span class="trait">Attack</span></li>
+            <li><span class="trait">Avatar</span></li>
+            <li><span class="trait">Blunder</span></li>
+            <li><span class="trait">Curse</span></li>
+            <li><span class="trait">Endtimes</span></li>
+            <li><span class="trait">Flaw</span></li>
+            <li><span class="trait">Geist</span></li>
+            <li><span class="trait">Hazard</span></li>
+            <li><span class="trait">Hex</span></li>
+            <li><span class="trait">Injury</span></li>
+            <li><span class="trait">Madness</span></li>
+            <li><span class="trait">Mi-Go</span></li>
+            <li><span class="trait">Monster</span></li>
+            <li><span class="trait">Mystery</span></li>
+            <li><span class="trait">Obstacle</span></li>
+            <li><span class="trait">Omen</span></li>
+            <li><span class="trait">Ooze</span></li>
+            <li><span class="trait">Pact</span></li>
+            <li><span class="trait">Paradox</span></li>
+            <li><span class="trait">Poison</span></li>
+            <li><span class="trait">Power</span></li>
+            <li><span class="trait">Scheme</span></li>
+            <li><span class="trait">Servitor</span></li>
+            <li><span class="trait">Spectral</span></li>
+            <li><span class="trait">Tactic</span></li>
+            <li><span class="trait">Task</span></li>
+            <li><span class="trait">Terror</span></li>
+            <li><span class="trait">Trap</span></li>
+            <li><span class="trait">Yithian</span></li>
+          </ul>
+          <a class="back-to-top" href="#doc-title">Back to top</a>
+        </section>
+        
+        <!-- Locations -->
+        <section id="locations" aria-labelledby="locations-heading">
+          <h3 id="locations-heading">Locations</h3>
+          <div class="trait-search">
+            <input type="text" placeholder="Search Locations..." aria-label="Search Locations" oninput="filterTraitsFuse(event, 'locations')" />
+          </div>
+          <ul class="trait-list" id="locations-list">
+            <li><span class="trait">Altered</span></li>
+            <li><span class="trait">Ancient</span></li>
+            <li><span class="trait">Arkham</span></li>
+            <li><span class="trait">Arkham Asylum</span></li>
+            <li><span class="trait">Basement</span></li>
+            <li><span class="trait">Campsite</span></li>
+            <li><span class="trait">Cave</span></li>
+            <li><span class="trait">Central</span></li>
+            <li><span class="trait">City</span></li>
+            <li><span class="trait">Clover Club</span></li>
+            <!-- More location traits... -->
+          </ul>
+          <a class="back-to-top" href="#doc-title">Back to top</a>
+        </section>
+        
+        <!-- Investigator Traits Placeholder -->
+        <section id="investigator-traits" aria-labelledby="investigator-heading">
+          <h3 id="investigator-heading">Investigator Traits (Placeholder)</h3>
+          <p>(Content for investigator-specific traits will be added in a future update.)</p>
+          <a class="back-to-top" href="#doc-title">Back to top</a>
+        </section>
+      </section>
+      
+      <!-- Official Keywords -->
+      <section id="official-keywords" aria-labelledby="keywords-heading">
+        <h2 id="keywords-heading">Official Keywords</h2>
+        <ul>
+          <li>Alert</li>
+          <li>Aloof</li>
+          <li>Exceptional</li>
+          <li>Fast</li>
+          <li>Hidden</li>
+          <li>Hunter</li>
+          <li>Retaliate</li>
+          <li>Peril</li>
+          <li>Permanent</li>
+          <li>Road X</li>
+          <li>Surge</li>
+          <li>Swarming X</li>
+          <li>Uses (X type)</li>
+          <li>Veiled</li>
+        </ul>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Available Tags -->
+      <section id="available-tags" aria-labelledby="available-tags-heading">
+        <h2 id="available-tags-heading">Available Tags</h2>
+        <p>These tags allow precise control over formatting, symbols, icons, and layout.</p>
+        
+        <h3 id="general-tags">General Tags</h3>
+        <ul>
+          <li><code>&lt;pre&gt;</code>: Prey</li>
+          <li><code>&lt;spa&gt;</code>: Spawn</li>
+        </ul>
+        
+        <h3 id="symbols-and-icons">Symbols and Icons</h3>
+        <ul>
+          <li><code>&lt;fullname&gt;</code>: Card name</li>
+          <li><code>&lt;gua&gt;</code>: Guardian</li>
+          <li><code>&lt;see&gt;</code>: Seeker</li>
+          <li><code>&lt;rog&gt;</code>: Rogue</li>
+          <li><code>&lt;mys&gt;</code>: Mystic</li>
+          <li><code>&lt;sur&gt;</code>: Survivor</li>
+          <li><code>&lt;wil&gt;</code>: Willpower</li>
+          <li><code>&lt;int&gt;</code>: Intellect</li>
+          <li><code>&lt;com&gt;</code>: Combat</li>
+          <li><code>&lt;agi&gt;</code>: Agility</li>
+          <li><code>&lt;wild&gt;</code>: Wild</li>
+          <li><code>&lt;sku&gt;</code>: Skull</li>
+          <li><code>&lt;cul&gt;</code>: Cultist</li>
+          <li><code>&lt;tab&gt;</code>: Tablet</li>
+          <li><code>&lt;mon&gt;</code>: Elder Thing</li>
+          <li><code>&lt;ble&gt;</code>: Bless</li>
+          <li><code>&lt;cur&gt;</code>: Curse</li>
+          <li><code>&lt;eld&gt;</code>: Elder Sign</li>
+          <li><code>&lt;ten&gt;</code>: Tentacles</li>
+        </ul>
+        
+        <h3 id="layout-and-design">Layout and Design</h3>
+        <ul>
+          <li><strong>Symbols and Spacers:</strong>
+            <ul>
+              <li><code>&lt;act&gt;</code>: Action</li>
+              <li><code>&lt;fre&gt;</code>: Free</li>
+              <li><code>&lt;rea&gt;</code>: Reaction</li>
+              <li><code>&lt;for&gt;</code>: Forced</li>
+              <li><code>&lt;hau&gt;</code>: Haunted</li>
+              <li><code>&lt;obj&gt;</code>: Objective</li>
+              <li><code>&lt;pat&gt;</code>: Patrol</li>
+              <li><code>&lt;rev&gt;</code>: Revelation</li>
+              <li><code>&lt;uni&gt;</code>: Unique</li>
+              <li><code>&lt;per&gt;</code>: Per investigator</li>
+              <li><code>&lt;bul&gt;</code>: Bullet</li>
+              <li><code>&lt;squ&gt;</code>: Square</li>
+              <li><code>&lt;bultab&gt;</code>: Tab spacing for bullet sections</li>
+            </ul>
+          </li>
+          <li><strong>Headers and Boxes:</strong>
+            <ul>
+              <li><code>&lt;section&gt;</code>: Section header</li>
+              <li><code>&lt;header&gt;</code>: Secondary header</li>
+              <li><code>&lt;boxres [bracket] [header] [color]&gt;</code>: Resolution box</li>
+              <li><code>&lt;boxsa [bracket] [header] [color]&gt;</code>: Standalone box</li>
+              <li><code>&lt;boxint [color]&gt;</code>: Interlude box</li>
+              <li><code>&lt;boxfla [color]&gt;</code>: Flashback box</li>
+              <li>Close with: <code>&lt;/boxres&gt;</code>, <code>&lt;/boxsa&gt;</code>, <code>&lt;/boxint&gt;</code>, or <code>&lt;/boxfla&gt;</code></li>
+            </ul>
+          </li>
+        </ul>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Common Tags -->
+      <section id="common-tags" aria-labelledby="common-tags-heading">
+        <h2 id="common-tags-heading">Common Tags</h2>
+        <p>These tags are commonly used for text formatting and content insertion.</p>
+        <h3>Text Formatting</h3>
+        <p>You can format text with styles. For example, <code>&lt;b&gt;Bold Text&lt;/b&gt;</code> produces <strong>Bold Text</strong> and <code>&lt;i&gt;Italic Text&lt;/i&gt;</code> produces <em>Italic Text</em>.</p>
+        <ul>
+          <li><code>&lt;b&gt;...&lt;/b&gt;</code> – Bold text</li>
+          <li><code>&lt;i&gt;...&lt;/i&gt;</code> – Italic text</li>
+          <li><code>&lt;u&gt;...&lt;/u&gt;</code> – Underlined text</li>
+          <li><code>&lt;colour #bc0000&gt;...&lt;/colour&gt;</code> – Changes text colour</li>
+          <li><code>&lt;size 11&gt;...&lt;/size&gt;</code> – Sets text size</li>
+          <li><code>&lt;family "Sans Serif"&gt;...&lt;/family&gt;</code> – Sets the typeface</li>
+        </ul>
+        <h3>Inserting Images</h3>
+        <ul>
+          <li><strong>Syntax:</strong> <code>&lt;image "url" [width [height]] [alignment [offset]]&gt;</code></li>
+          <li><strong>Examples:</strong>
+            <ul>
+              <li><code>&lt;image "d:/my pictures/example.png"&gt;</code> – Inserts a local image.</li>
+              <li><code>&lt;image "https://example.com/image.png" 3cm&gt;</code> – Inserts a 3cm‑wide image.</li>
+              <li><strong>Relative Paths:</strong> Use relative paths such as <code>res://</code> or <code>project://</code> to reference images and portraits for portability between devices.</li>
+            </ul>
+          </li>
+        </ul>
+        <h3>Shortcuts</h3>
+        <ul>
+          <li><strong>Bold:</strong> <kbd>Ctrl</kbd> + <kbd>B</kbd></li>
+          <li><strong>Italic:</strong> <kbd>Ctrl</kbd> + <kbd>I</kbd></li>
+          <li><strong>Underline:</strong> <kbd>Ctrl</kbd> + <kbd>U</kbd></li>
+        </ul>
+        <h3>Headings</h3>
+        <ul>
+          <li><code>&lt;h1&gt;...&lt;/h1&gt;</code> – Main heading</li>
+          <li><code>&lt;h2&gt;...&lt;/h2&gt;</code> – Subheading</li>
+        </ul>
+        <h3>Tag Parameters</h3>
+        <p>Many tags accept parameters—additional information to customize behavior. Parameters are separated by spaces; enclose multi‑word parameters in quotes.</p>
+        <ul>
+          <li><code>&lt;colour #ff0000&gt;Red Text&lt;/colour&gt;</code></li>
+          <li><code>&lt;family "Sans Serif"&gt;Styled Text&lt;/family&gt;</code></li>
+          <li><code>&lt;image "example.jpg" 100px 50px&gt;</code></li>
+        </ul>
+        <h3>Best Practices</h3>
+        <ul>
+          <li>Use valid parameter values (e.g., proper hex codes, font names).</li>
+          <li>Enclose multi‑word parameters in quotes.</li>
+          <li>Consult full tag documentation for a complete list of supported parameters.</li>
+        </ul>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Tag Reference -->
+      <section id="tag-reference" aria-labelledby="tag-ref-heading">
+        <h2 id="tag-ref-heading">Tag Reference</h2>
+        <pre><code class="hljs language-html">
+&lt;b&gt;Bold text&lt;/b&gt;
+&lt;i&gt;Italic text&lt;/i&gt;
+&lt;u&gt;Underlined text&lt;/u&gt;
+        </code></pre>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Variable Tags -->
+      <section id="variable-tags" aria-labelledby="variable-tags-heading">
+        <h2 id="variable-tags-heading">Variable Tags</h2>
+        <ul>
+          <li><code>&lt;name&gt;</code> – Component’s first name</li>
+          <li><code>&lt;lastname&gt;</code> – Family name</li>
+          <li><code>&lt;fullname&gt;</code> – Combination of both</li>
+        </ul>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Gender-Adaptive Tags -->
+      <section id="gender-adaptive-tags" aria-labelledby="gender-tags-heading">
+        <h2 id="gender-tags-heading">Gender-Adaptive Tags</h2>
+        <p>These tags let text adapt automatically to a gender setting. They use the format <code>&lt;m/f&gt;</code> (first part masculine, second feminine).</p>
+        <p>Example: <code>&lt;He/She&gt; became the High Priest&lt;-/ess&gt; of Set.</code> will render as:</p>
+        <ul>
+          <li><strong>Masculine:</strong> He became the High Priest of Set.</li>
+          <li><strong>Feminine:</strong> She became the High Priestess of Set.</li>
+        </ul>
+        <blockquote>
+          <p><strong>Tip:</strong> When referring to the player rather than a character, consider using <strong>they/their</strong> for inclusivity.</p>
+        </blockquote>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Advanced Tags -->
+      <section id="advanced-tags" aria-labelledby="advanced-tags-heading">
+        <h2 id="advanced-tags-heading">Advanced Tags</h2>
+        <h3>Macros</h3>
+        <ul>
+          <li><code>&lt;repeat n text&gt;</code> – Repeats text <code>n</code> times.</li>
+          <li><code>&lt;define tagname replacement&gt;</code> – Defines a macro tag. Use <code>@n;</code> to insert parameters.
+            <ul>
+              <li>Example: <code>&lt;define bold "This is @1; in bold"&gt;</code> then <code>&lt;bold "example"&gt;</code> outputs <strong>This is example in bold</strong>.</li>
+            </ul>
+          </li>
+        </ul>
+        <h3>Script Code</h3>
+        <ul>
+          <li><code>&lt;script url [param1 param2 ...]&gt;</code> – Executes a script by calling its <code>main()</code> function.</li>
+          <li><code>&lt;eval expression&gt;</code> – Evaluates an expression and replaces the tag with the result (e.g., <code>&lt;eval "Math.pow(2,10).toFixed(0);"&gt;</code> outputs 1024).</li>
+        </ul>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Pre-made Text Macros -->
+      <section id="premade-macros" aria-labelledby="premade-macros-heading">
+        <h2 id="premade-macros-heading">Pre-made Text Macros</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Macro</th>
+              <th>Expansion</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>*</td><td>&lt;eld&gt; effect:</td></tr>
+            <tr><td>&lt;eld&gt;</td><td>&lt;mon&gt;</td></tr>
+            <tr><td>1a</td><td>(Limit once per action.)</td></tr>
+            <tr><td>1A</td><td>(Max once per action.)</td></tr>
+            <tr><td>1g</td><td>(Limit once per game.)</td></tr>
+            <tr><td>1G</td><td>(Max once per game.)</td></tr>
+            <tr><td>1i</td><td>Limit 1 per investigator.</td></tr>
+            <tr><td>1p</td><td>(Limit once per phase.)</td></tr>
+            <tr><td>1P</td><td>(Max once per phase.)</td></tr>
+            <tr><td>1r</td><td>(Limit once per round.)</td></tr>
+            <tr><td>1R</td><td>(Max once per round.)</td></tr>
+            <tr><td>1s</td><td>(Limit once per test.)</td></tr>
+            <tr><td>1S</td><td>(Max once per test.)</td></tr>
+            <tr><td>1t</td><td>(Limit once per turn.)</td></tr>
+            <tr><td>1T</td><td>(Max once per turn.)</td></tr>
+            <tr><td>a</td><td>&lt;act&gt;</td></tr>
+            <tr><td>b</td><td>&lt;bul&gt;</td></tr>
+            <tr><td>bt</td><td>&lt;bultab&gt;</td></tr>
+            <tr><td>cb</td><td>□</td></tr>
+            <tr><td>ex</td><td>exhaust &lt;fullname&gt;</td></tr>
+            <tr><td>Ex</td><td>Exhaust &lt;fullname&gt;</td></tr>
+            <tr><td>f</td><td>&lt;for&gt;</td></tr>
+            <tr><td>gc</td><td>Guardian cards (&lt;gua&gt;)</td></tr>
+            <tr><td>gsg</td><td>&lt;fullname&gt; gains surge</td></tr>
+            <tr><td>i</td><td>investigator</td></tr>
+            <tr><td>l0</td><td>level 0</td></tr>
+            <tr><td>l1</td><td>level 0-1</td></tr>
+            <tr><td>l2</td><td>level 0-2</td></tr>
+            <tr><td>l3</td><td>level 0-3</td></tr>
+            <tr><td>l4</td><td>level 0-4</td></tr>
+            <tr><td>l5</td><td>level 0-5</td></tr>
+            <tr><td>ld</td><td>up to $|five|$ level 0 cards from any other class</td></tr>
+            <tr><td>mc</td><td>Mystic cards (&lt;mys&gt;)</td></tr>
+            <tr><td>n</td><td>&lt;fullname&gt;</td></tr>
+            <tr><td>named-key</td><td>&lt;for&gt; After &lt;fullname&gt; is revealed: Place the set-aside $||$ key on it.</td></tr>
+            <tr><td>nc</td><td>Neutral cards</td></tr>
+            <tr><td>o</td><td>Otherwise,</td></tr>
+            <tr><td>per</td><td>Permanent.</td></tr>
+            <tr><td>place-key</td><td>&lt;for&gt; When you reveal &lt;fullname&gt;: Randomly choose 1 of the set-aside facedown keys and place it on &lt;fullname&gt; without looking at it.</td></tr>
+            <tr><td>pool</td><td>(<i>from the token pool</i>)</td></tr>
+            <tr><td>q</td><td>&lt;fre&gt;</td></tr>
+            <tr><td>r</td><td>&lt;rea&gt;</td></tr>
+            <tr><td>rbw</td><td>1 random basic weakness</td></tr>
+            <tr><td>rc</td><td>Rogue cards (&lt;rog&gt;)</td></tr>
+            <tr><td>rs</td><td>(&lt;res&gt;$||$)</td></tr>
+            <tr><td>rv</td><td>&lt;rev&gt;</td></tr>
+            <tr><td>sc</td><td>Seeker cards (&lt;see&gt;)</td></tr>
+            <tr><td>sg</td><td>Surge.</td></tr>
+            <tr><td>t</td><td>&lt;t&gt;$||$&lt;/t&gt;</td></tr>
+            <tr><td>tc</td><td>&lt;t&gt;$||$&lt;/t&gt; cards</td></tr>
+            <tr><td>threat</td><td>&lt;rev&gt; Put &lt;fullname&gt; into play in your threat area.</td></tr>
+            <tr><td>tok</td><td>&lt;sku&gt;, &lt;cul&gt;, &lt;tab&gt;, &lt;Mon&gt;, or &lt;ten&gt;</td></tr>
+            <tr><td>v</td><td>&lt;vs&gt;</td></tr>
+            <tr><td>vc</td><td>Survivor cards (&lt;sur&gt;)</td></tr>
+          </tbody>
+        </table>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Symbols and Icons -->
+      <section id="symbols-icons" aria-labelledby="symbols-icons-heading">
+        <h2 id="symbols-icons-heading">Symbols &amp; Icons</h2>
+        <p>Below are placeholders for the various symbols and icons that certain tags resolve to. Actual images and/or icon fonts will be provided later.</p>
+        <div>
+          <div class="placeholder-icon">Icon 1</div>
+          <div class="placeholder-icon">Icon 2</div>
+          <div class="placeholder-icon">Icon 3</div>
+          <div class="placeholder-icon">Icon 4</div>
+          <!-- Additional placeholders as needed -->
+        </div>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Additional Official Documentation (Incorporated Content) -->
+      <section id="additional-docs" aria-labelledby="additional-docs-heading">
+        <h2 id="additional-docs-heading">Additional Official Documentation</h2>
+        <article>
+          <h3>Markup Text</h3>
+          <p>This section explains how markup tags are used in Strange Eons. Tags are inserted between angle brackets, for example:</p>
+          <ul>
+            <li><code>&lt;b&gt;Bold Text&lt;/b&gt;</code> produces <strong>Bold Text</strong>.</li>
+            <li><code>&lt;i&gt;Italic Text&lt;/i&gt;</code> produces <em>Italic Text</em>.</li>
+          </ul>
+          <p>Parameters can be supplied to many tags. For example, <code>&lt;colour #ff0000&gt;Red Text&lt;/colour&gt;</code> sets the text to red.</p>
+          <p><strong>Important:</strong> Always use relative paths for images and portraits (e.g. using <code>res://</code> or <code>project://</code> syntax) to ensure portability between devices.</p>
+        </article>
+        <article>
+          <h3>Expansion Symbols</h3>
+          <p>Expansion symbols mark game components that belong to specific expansions. The AHLCG plug‑in uses tags such as <code>&lt;ratss&gt;</code>, <code>&lt;ratsm&gt;</code>, and <code>&lt;ratsl&gt;</code> to insert small, medium, and large icons, respectively.</p>
+          <p>When defining custom expansions, be sure to provide proper graphics so that the symbols are displayed correctly.</p>
+        </article>
+        <article>
+          <h3>Portraits</h3>
+          <p>Portraits are used to add illustrations to game components. When referencing portrait images, it is crucial to use relative paths (e.g. <code>res://</code> or <code>project://</code>) so that the project remains portable.</p>
+          <p>Portraits can be adjusted using the portrait panel. You can reposition, scale, and fine‑tune the portrait as needed.</p>
+        </article>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+      
+      <!-- Final Remarks -->
+      <section id="final-remarks" aria-labelledby="final-remarks-heading">
+        <h2 id="final-remarks-heading">Final Remarks</h2>
+        <p>This documentation is designed to help you fully utilize Strange Eons and the AHLCG plug‑in to produce high‑quality custom content for Arkham Horror: The Card Game. For advanced use cases, refer to <a href="https://se3docs.cgjennings.ca/um-index.html">Strange Eons' Official Documentation</a>.</p>
+        <a class="back-to-top" href="#doc-title">Back to top</a>
+      </section>
+    </main>
+    
+    <!-- Footer -->
+    <footer role="contentinfo">
+      <p>Coldtoes' Custom Content Creation Legions</p>
+    </footer>
+    
+    <!-- Fuse.js functionality for trait blocks and global search -->
+    <script>
+      // Arrays for trait blocks
+      const traitsPlayer = [
+        "Agency", "Ally", "Artist", "Assistant", "Augury", "Believer",
+        "Blessed", "Bold", "Boon", "Bystander", "Charm", "Clairvoyant",
+        "Clothing", "Composure", "Condition", "Connection", "Conspirator",
+        "Covenant", "Creature", "Criminal", "Cultist", "Cursed"
+      ];
+      const traitsEncounter = [
+        "Attack", "Avatar", "Blunder", "Curse", "Endtimes", "Flaw", "Geist",
+        "Hazard", "Hex", "Injury", "Madness", "Mi-Go", "Monster", "Mystery",
+        "Obstacle", "Omen", "Ooze", "Pact", "Paradox", "Poison", "Power",
+        "Scheme", "Servitor", "Spectral", "Tactic", "Task", "Terror", "Trap",
+        "Yithian"
+      ];
+      const traitsLocations = [
+        "Altered", "Ancient", "Arkham", "Arkham Asylum", "Basement", "Campsite", "Cave",
+        "Central", "City", "Clover Club"
+      ];
+      
+      // Create Fuse.js instances for each block
+      const fusePlayer = new Fuse(traitsPlayer, { threshold: 0.3 });
+      const fuseEncounter = new Fuse(traitsEncounter, { threshold: 0.3 });
+      const fuseLocations = new Fuse(traitsLocations, { threshold: 0.3 });
+      
+      function filterTraitsFuse(event, block) {
+        const value = event.target.value.trim();
+        let results = [];
+        let fuse, targetList;
+        if (block === "player") {
+          fuse = fusePlayer;
+          targetList = document.getElementById("player-cards-list");
+        } else if (block === "encounter") {
+          fuse = fuseEncounter;
+          targetList = document.getElementById("encounter-list");
+        } else if (block === "locations") {
+          fuse = fuseLocations;
+          targetList = document.getElementById("locations-list");
+        }
+        if (!value) {
+          restoreTraits(block, targetList);
+          return;
+        }
+        results = fuse.search(value).map(r => r.item);
+        targetList.innerHTML = results.map(trait => `<li><span class="trait">${trait}</span></li>`).join("");
+      }
+      
+      function restoreTraits(block, targetList) {
+        let arr = [];
+        if (block === "player") arr = traitsPlayer;
+        else if (block === "encounter") arr = traitsEncounter;
+        else if (block === "locations") arr = traitsLocations;
+        targetList.innerHTML = arr.map(trait => `<li><span class="trait">${trait}</span></li>`).join("");
+      }
+      
+      // Global search: index all main sections (by id, heading, and text content)
+      function getSearchData() {
+        const sections = document.querySelectorAll("main section");
+        let data = [];
+        sections.forEach(section => {
+          const id = section.id;
+          const header = section.querySelector("h2, h3");
+          const title = header ? header.textContent : "";
+          const content = section.textContent;
+          data.push({ id, title, content });
+        });
+        return data;
+      }
+      
+      let globalSearchData = getSearchData();
+      let fuseGlobal = new Fuse(globalSearchData, {
+        keys: ["title", "content"],
+        threshold: 0.4
+      });
+      
+      function performGlobalSearch() {
+        const query = document.getElementById("global-search").value.trim();
+        const resultsContainer = document.getElementById("global-search-results");
+        if (!query) {
+          resultsContainer.style.display = "none";
+          resultsContainer.innerHTML = "";
+          return;
+        }
+        const results = fuseGlobal.search(query);
+        if (results.length === 0) {
+          resultsContainer.innerHTML = "<p>No results found.</p>";
+        } else {
+          resultsContainer.innerHTML = "<ul>" + results.map(result => {
+            return `<li><a href="#${result.item.id}" onclick="document.getElementById('global-search').value=''; document.getElementById('global-search-results').style.display='none';">${result.item.title}</a></li>`;
+          }).join("") + "</ul>";
+        }
+        resultsContainer.style.display = "block";
+      }
+    </script>
+  </body>
+</html>
