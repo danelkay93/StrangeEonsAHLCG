@@ -657,6 +657,17 @@ function initBodyTags( diy, textBox ) {
 		textBox.setStyleForTag($(item+'-tag'), diy.settings.getTextStyle(item+'-style',null));
 	}
 
+	// Register the <pat> tag
+	textBox.setReplacementForTag("pat", function (params) {
+		if (params.length > 0) {
+			let param = params[0];
+			return `Patrol (${param})`;
+		}
+		return ""; // Fallback when no parameter provided
+	});
+	
+	    println("✅ AHLCG: Custom <pat> tag registered successfully.");
+
 	textBox.setReplacementForTag( 'bultab', '     ' );
 
 	for ( let index = 0; index < AHLCGObject.standardEncounterList.length; index++ ) {
@@ -746,6 +757,7 @@ function initSmallSymbolTags( diy, textBox ) {
 	}
 }
 */
+
 function initCopyrightTags( diy, textBox ) {
 	var AHLCGObject = Eons.namedObjects.AHLCGObject;
 
